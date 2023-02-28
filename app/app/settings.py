@@ -29,6 +29,7 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
+    "rest_api",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -36,9 +37,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
-    "rest_api",
     'rest_framework.authtoken',
-    'rest_framework_temporary_tokens',
 
 ]
 
@@ -129,8 +128,3 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
 ]
 AUTH_USER_MODEL = 'rest_api.User'
-REST_FRAMEWORK_TEMPORARY_TOKENS = {
-    'MINUTES': 30,
-    'RENEW_ON_SUCCESS': True,
-    'USE_AUTHENTICATION_BACKENDS': False,
-}
