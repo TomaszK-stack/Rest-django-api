@@ -49,7 +49,7 @@ class Image(models.Model):
         img = Img.open(image)
         img = img.convert('RGB')
         width = img.width
-        size = (width, height)
+        size = (width, int(height))
         img.thumbnail(size)
 
         thumb_io = BytesIO()
