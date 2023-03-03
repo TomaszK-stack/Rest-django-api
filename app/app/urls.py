@@ -19,7 +19,7 @@ from rest_api.views import get_image
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('images/<str:signed_value>/', get_image, name='get_image'),
+    path('static/images/<str:signed_value>', get_image, name='get_image'),
     path('api/v1/', include('djoser.urls')),
     path('api/v1/', include('djoser.urls.authtoken')),
     path('api/v1/', include("rest_api.urls")),

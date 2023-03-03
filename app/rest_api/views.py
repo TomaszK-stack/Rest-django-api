@@ -1,18 +1,21 @@
 from rest_framework import generics, viewsets
-from rest_framework.parsers import MultiPartParser, FormParser
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from .models import Image
 from .serializers import ImageSerializer
 from rest_framework.response import Response
 from rest_framework import status, authentication
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import api_view
-from django.core.signing import Signer
+from rest_framework.decorators import api_view, parser_classes, authentication_classes, permission_classes
+from django.core.signing import Signer, SignatureExpired, BadSignature
 from django.http import HttpResponseBadRequest, HttpResponseNotFound, HttpResponse
+import time
+
 
 class ImageApiView(generics.ListAPIView):
     serializer_class = ImageSerializer
     permission_classes = [IsAuthenticated]
     authentication_classes = [authentication.TokenAuthentication]
+
     def get_queryset(self):
         user = self.request.user
 
@@ -36,43 +39,37 @@ class ImageCreateView(generics.CreateAPIView):
         serializer.save()
 
     def post(self, request, *args, **kwargs):
+        print(request.data)
         return self.create(request, *args, **kwargs)
 
-@api_view(http_method_names=["GET", "POST"])
-def generate_exp_links(request):
-    serializer = ImageSerializer()
-    if request.user.tier.generate_exp_links:
-        if request.method == "POST":
-            signer = Signer()
-            signed_value = signer.sign("http://127.0.0.1:8000/static/images/326811043_5719292304862868_8427228551201173610_n_1_p5iMSLq.png")
-            seconds = 60
-            signed_value_with_expiry = f"{signed_value};{seconds}"
-            print(signed_value)
-            return Response(signed_value_with_expiry)
-        return Response("Create your expiring links")
 
+@api_view(http_method_names=["POST"])
+@authentication_classes([authentication.TokenAuthentication])
+@parser_classes([JSONParser])
+@permission_classes([IsAuthenticated])
+def generate_exp_links(request):
+    if request.user.tier.generate_exp_links:
+        data = request.data["link"]
+        link = data.split("images/")[1]
+        signer = Signer()
+        signed_value = signer.sign_object({'file': link, 'time': time.time() + 30})
+
+        return Response('http://localhost:8000/api/v1/image/' + signed_value)
     else:
         return Response("You do not have permissions to create expiring links.")
 
 
-def get_image(request, signed_value):
-    # Rozdzielenie podpisu i czasu wygaśnięcia
+def get_image(request, signature):
     signer = Signer()
     try:
-        value, expiry = signed_value.split(';')
-        # Sprawdzenie podpisu i czasu wygaśnięcia
-        value = signer.unsign(value)
-    except Exception as e:
-        print(e)
-        return HttpResponseNotFound('Podpisany link wygasł lub jest nieprawidłowy.')
-    # Pobranie i zwrócenie obrazu
-    with open(value, 'rb') as f:
+        value = signer.unsign_object(signature)
+
+        if value["time"] < time.time():
+            raise SignatureExpired
+
+    except [SignatureExpired, BadSignature]:
+        return HttpResponseNotFound('The link provided has expired or is invalid.')
+    with open("static/images/" + value["file"], 'rb') as f:
         image_data = f.read()
     return HttpResponse(image_data, content_type='image/jpeg')
 
-def image_test(request):
-
-
-    with open("static\\images\\326811043_5719292304862868_8427228551201173610_n.png", 'rb') as f:
-        image_data = f.read()
-        return HttpResponse(image_data, content_type='image/jpeg')

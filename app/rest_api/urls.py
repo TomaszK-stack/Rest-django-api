@@ -7,5 +7,5 @@ urlpatterns = [
     path('create/', ImageCreateView.as_view(), name = "create_view"),
     path('explinks/', generate_exp_links, name = "generate_exp_links" ),
     path('auth/', views.obtain_auth_token, name = "get_auth_token" ),
-
+    path('image/<str:signature>', get_image, name="image"),
 ]

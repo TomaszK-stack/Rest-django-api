@@ -1,3 +1,4 @@
+from io import BytesIO
 from django.db import models
 from django.contrib.auth.models import AbstractUser, UserManager
 from PIL import Image as Img
@@ -30,16 +31,17 @@ class User(AbstractUser):
 
 class Image(models.Model):
     image = models.ImageField(upload_to="static/images/")
-    thumbnail = models.BooleanField(default=False)
 
+    thumbnail = models.BooleanField(default=False)
     user = models.ForeignKey(to=User,  on_delete=models.CASCADE, default=None)
+    size = models.IntegerField( default=100, null=True)
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None, *args, **kwargs):
         if not self.thumbnail:
             user = User.objects.filter(pk=self.user.pk).first()
             tier = user.tier
             for size in tier.sizes_of_thumb:
                 thumbnail = self.make_thumbnail(self.image, tier.sizes_of_thumb[size])
-                image = Image(image = thumbnail, thumbnail = True, user = user)
+                image = Image(image = thumbnail, thumbnail = True, user = user, size=size)
                 image.save()
 
         super().save(*args, **kwargs)
@@ -51,7 +53,7 @@ class Image(models.Model):
         width = img.width
         size = (width, int(height))
         img.thumbnail(size)
-
+        thumb_io = BytesIO()
         img.save(thumb_io, 'JPEG', quality=85)
         thumbnail = File(thumb_io, name=image.name)
 
