@@ -25,9 +25,12 @@ class ImageApiView(generics.ListAPIView):
 class ImageCreateView(generics.CreateAPIView):
     queryset = Image.objects.all()
     serializer_class = ImageSerializer
-    authentication_classes = [authentication.TokenAuthentication]
+    permission_classes =  [IsAuthenticated]
 
+    authentication_classes = [ authentication.TokenAuthentication]
     def create(self, request, *args, **kwargs):
+
+
         serializer = self.get_serializer(data=request.data)
         data = request.data
 
@@ -40,8 +43,16 @@ class ImageCreateView(generics.CreateAPIView):
 
     def post(self, request, *args, **kwargs):
         print(request.data)
-        return self.create(request, *args, **kwargs)
+        try:
+            data = str(request.data.dict()["image"])
+        except AttributeError:
+            return self.create(request, *args, **kwargs)
 
+        extension = data.split(".")[1]
+        if extension == "jpg" or extension == "png":
+            return self.create(request, *args, **kwargs)
+        else:
+            return Response("Invalid extension of file, available only jpg or png.", status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 @api_view(http_method_names=["POST"])
 @authentication_classes([authentication.TokenAuthentication])
@@ -51,8 +62,12 @@ def generate_exp_links(request):
     if request.user.tier.generate_exp_links:
         data = request.data["link"]
         link = data.split("images/")[1]
+        seconds = request.data["time"]
+        if seconds < 300 or seconds > 30000:
+            return Response("An invalid value was entered in the time field, it should be between 300 and 30000", status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+
         signer = Signer()
-        signed_value = signer.sign_object({'file': link, 'time': time.time() + 30})
+        signed_value = signer.sign_object({'file': link, 'time': time.time() + seconds})
 
         return Response('http://localhost:8000/api/v1/image/' + signed_value)
     else:
@@ -67,8 +82,10 @@ def get_image(request, signature):
         if value["time"] < time.time():
             raise SignatureExpired
 
-    except [SignatureExpired, BadSignature]:
-        return HttpResponseNotFound('The link provided has expired or is invalid.')
+    except SignatureExpired:
+        return HttpResponseNotFound('The link provided has expired.')
+    except BadSignature:
+        return HttpResponseNotFound("The link is invalid")
     with open("static/images/" + value["file"], 'rb') as f:
         image_data = f.read()
     return HttpResponse(image_data, content_type='image/jpeg')

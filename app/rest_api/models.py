@@ -9,11 +9,14 @@ from django.core.signing import Signer
 from datetime import timedelta
 from django.utils import timezone
 from django.contrib.postgres.fields import ArrayField
-
+from django.core.validators import FileExtensionValidator
+from .validators import validata_json_data
+import os
+# from django.contrib.auth.management.commands.createsuperuser import
 class Tier(models.Model):
     name = models.CharField(max_length=50)
     original_image = models.BooleanField(default=False)
-    sizes_of_thumb = models.JSONField(default={"1":"200"})
+    sizes_of_thumb = models.JSONField(default={"1":200}, validators=[validata_json_data])
     generate_exp_links = models.BooleanField(default=False)
 
     def __str__(self):
@@ -26,7 +29,13 @@ class User(AbstractUser):
             tier = Tier.objects.get_or_create(name = "Admin")[0]
             tier.save()
             self.tier = tier
+        else:
+            self.set_password(self.password)
+
         super().save(*args, **kwargs)
+        if self._password is not None:
+            password_validation.password_changed(self._password, self)
+            self._password = None
 
 
 class Image(models.Model):
@@ -41,11 +50,17 @@ class Image(models.Model):
             tier = user.tier
             for size in tier.sizes_of_thumb:
                 thumbnail = self.make_thumbnail(self.image, tier.sizes_of_thumb[size])
-                image = Image(image = thumbnail, thumbnail = True, user = user, size=size)
+                image = Image(image = thumbnail, thumbnail = True, user = user, size=tier.sizes_of_thumb[size])
                 image.save()
+            if self.user.tier.original_image:
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
 
-        super().save(*args, **kwargs)
-
+    # def delete(self, using=None, keep_parents=False):
+    #     os.remove("static/images/" + self.image )
+    #
+    #     super().delete()
     def make_thumbnail(self, image, height = 200):
 
         img = Img.open(image)
