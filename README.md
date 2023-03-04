@@ -50,7 +50,8 @@ python manage.py runserver
 ## Description
 
 Api is working on "api/v1/" url. Authentication is done using tokens  below I listed the adresses and functionality. 
-For all requests exclude first we have to add Authorization header.
+For all requests exclude first we have to add Authorization header. There are three based tiers as it was described in task and one is extra for admin.
+Staff users can create custom tiers.
 | adres | description |
 | ------ | ------ |
 | token/login | Authorization adress - api returns auth token which is necessary to work with api |
