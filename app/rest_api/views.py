@@ -42,36 +42,27 @@ class ImageCreateView(generics.CreateAPIView):
         serializer.save()
 
     def post(self, request, *args, **kwargs):
-        print(request.data)
-        try:
-            data = str(request.data.dict()["image"])
-        except AttributeError:
-            return self.create(request, *args, **kwargs)
+        return self.create(request, *args, **kwargs)
 
-        extension = data.split(".")[1]
-        if extension == "jpg" or extension == "png":
-            return self.create(request, *args, **kwargs)
-        else:
-            return Response("Invalid extension of file, available only jpg or png.", status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
 @api_view(http_method_names=["POST"])
 @authentication_classes([authentication.TokenAuthentication])
-@parser_classes([JSONParser])
+@parser_classes([MultiPartParser, JSONParser])
 @permission_classes([IsAuthenticated])
 def generate_exp_links(request):
     if request.user.tier.generate_exp_links:
         data = request.data["link"]
         link = data.split("images/")[1]
         seconds = request.data["time"]
-        if seconds < 300 or seconds > 30000:
+        if int(seconds) < 300 or int(seconds) > 30000:
             return Response("An invalid value was entered in the time field, it should be between 300 and 30000", status=status.HTTP_422_UNPROCESSABLE_ENTITY)
 
         signer = Signer()
-        signed_value = signer.sign_object({'file': link, 'time': time.time() + seconds})
+        signed_value = signer.sign_object({'file': link, 'time': time.time() + int(seconds)})
 
         return Response('http://localhost:8000/api/v1/image/' + signed_value)
     else:
-        return Response("You do not have permissions to create expiring links.")
+        return Response("You do not have permissions to create expiring links.", status.HTTP_403_FORBIDDEN)
 
 
 def get_image(request, signature):

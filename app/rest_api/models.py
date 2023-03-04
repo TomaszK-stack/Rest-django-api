@@ -39,7 +39,7 @@ class User(AbstractUser):
 
 
 class Image(models.Model):
-    image = models.ImageField(upload_to="static/images/")
+    image = models.ImageField(upload_to="static/images/",validators=[FileExtensionValidator(["jpg", "png"])])
 
     thumbnail = models.BooleanField(default=False)
     user = models.ForeignKey(to=User,  on_delete=models.CASCADE, default=None)
